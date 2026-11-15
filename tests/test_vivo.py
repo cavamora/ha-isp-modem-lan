@@ -23,6 +23,12 @@ LOGIN = """<form name="passWarning" action="login.cgi" method="post">
 var passwd=hex_md5(document.passWarning.LoginPassword.value+":"+sid);
 document.passWarning.acceptLoginIndex.value=1;
 document.passWarning.LoginPasswordValue.value=passwd;}</script>"""
+RESETS = """<form method="POST" action="device-management-resets.cgi"></form>
+<a href="popup-reboot.cgi">Reboot</a><a href="popup-resets.cgi">Restore</a>
+<script>function reboot(){var data={restoreFlag:1,RestartBtn:"restart"};$.post(document.forms[0].action,data);}
+function restore(){var data={restoreFlag:5,RestartBtn:"restart"};$.post(document.forms[0].action,data);}</script>"""
+POPUP = '<a href="device-management-rebootinfo.cgi">Reboot</a><a href="#">Cancel</a>'
+CONFIRM = '<script>$(document).ready(function(){parent.reboot();});</script>'
 
 
 class _Response:
@@ -45,8 +51,9 @@ class _Response:
 
 
 class _Opener:
-    def __init__(self, *, about=ABOUT, info=INFO):
+    def __init__(self, *, about=ABOUT, info=INFO, resets=RESETS, popup=POPUP, confirm=CONFIRM):
         self.about, self.info = about, info
+        self.resets, self.popup, self.confirm = resets, popup, confirm
         self.requests = []
         self.logged_in = False
 
@@ -71,6 +78,19 @@ class _Opener:
             return _Response(self.about)
         if path.endswith("/sophia_info.cgi"):
             return _Response(self.info)
+        if path.endswith("/device-management-resets.cgi"):
+            if payload is not None:
+                assert urllib.parse.parse_qs(payload.decode()) == {
+                    "restoreFlag": ["1"], "RestartBtn": ["restart"]
+                }
+                assert request.get_header("X-requested-with") == "XMLHttpRequest"
+                assert request.get_header("Referer").endswith("/device-management-resets.cgi")
+                return _Response("accepted")
+            return _Response(self.resets)
+        if path.endswith("/popup-reboot.cgi"):
+            return _Response(self.popup)
+        if path.endswith("/device-management-rebootinfo.cgi"):
+            return _Response(self.confirm)
         raise AssertionError(path)
 
 
@@ -98,12 +118,70 @@ class VivoTests(unittest.TestCase):
         with self.assertRaisesRegex(VivoError, "Unsupported Vivo modem"):
             VivoModemClient("192.0.2.2", "user", "pass", opener=opener).status()
 
-    def test_reset_endpoint_is_disallowed_even_to_manual_callers(self):
+    def test_manual_restart_follows_confirmation_and_sends_one_non_factory_request(self):
         opener = _Opener()
         client = VivoModemClient("192.0.2.2", "user", "pass", opener=opener)
-        with self.assertRaisesRegex(VivoError, "Unexpected modem path"):
+        self.assertEqual(client.restart(), {"attempted": True})
+        self.assertEqual(
+            [path.rsplit("/", 1)[-1] for path, _ in opener.requests],
+            ["login.cgi", "login.cgi", "about-power-box2.cgi", "sophia_info.cgi",
+             "device-management-resets.cgi", "popup-reboot.cgi",
+             "device-management-rebootinfo.cgi", "device-management-resets.cgi"],
+        )
+        self.assertEqual(sum(1 for _, body in opener.requests if body and b"restoreFlag" in body), 1)
+
+    def test_icon_only_entry_link_still_follows_confirmed_reboot_path(self):
+        page = RESETS.replace(
+            '<a href="popup-reboot.cgi">Reboot</a>',
+            '<a href="popup-reboot.cgi"><img alt="Reboot"></a>',
+        )
+        opener = _Opener(resets=page)
+        result = VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertEqual(result, {"attempted": True})
+        self.assertEqual(sum(1 for _, body in opener.requests if body and b"restoreFlag" in body), 1)
+
+    def test_direct_reset_post_is_refused_without_the_manual_guard(self):
+        opener = _Opener()
+        client = VivoModemClient("192.0.2.2", "user", "pass", opener=opener)
+        with self.assertRaisesRegex(VivoError, "Unexpected modem POST"):
             client._request("device-management-resets.cgi", b"restoreFlag=1")
         self.assertEqual(opener.requests, [])
+
+    def test_comment_about_parent_reboot_does_not_arm_the_post(self):
+        opener = _Opener(confirm='<script>// parent.reboot()\n</script>')
+        with self.assertRaisesRegex(VivoError, "controls changed"):
+            VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertFalse(any(body and b"restoreFlag" in body for _, body in opener.requests))
+
+    def test_factory_restore_flag_cannot_be_used_as_reboot(self):
+        opener = _Opener(resets=RESETS.replace("restoreFlag:1", "restoreFlag:5"))
+        with self.assertRaisesRegex(VivoError, "controls changed"):
+            VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertFalse(any(body and b"restoreFlag" in body for _, body in opener.requests))
+
+    def test_confirmation_link_to_another_host_is_refused(self):
+        opener = _Opener(popup=POPUP.replace(
+            'href="device-management-rebootinfo.cgi"',
+            'href="http://example.com/device-management-rebootinfo.cgi"',
+        ))
+        with self.assertRaisesRegex(VivoError, "controls changed"):
+            VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertFalse(any(body and b"restoreFlag" in body for _, body in opener.requests))
+
+    def test_disconnected_response_does_not_retry_or_leak_credentials(self):
+        class DroppedPost(_Opener):
+            def open(self, request, timeout):
+                if request.data and request.full_url.endswith("device-management-resets.cgi"):
+                    self.requests.append((urllib.parse.urlsplit(request.full_url).path, request.data))
+                    raise urllib.error.URLError("pass:secret@192.0.2.2")
+                return super().open(request, timeout)
+
+        opener = DroppedPost()
+        with self.assertRaisesRegex(VivoError, "outcome unconfirmed") as caught:
+            VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertNotIn("secret", str(caught.exception))
+        self.assertNotIn("192.0.2.2", str(caught.exception))
+        self.assertEqual(sum(1 for _, body in opener.requests if body and b"restoreFlag" in body), 1)
 
     def test_missing_credentials_rejected_without_network_request(self):
         opener = _Opener()

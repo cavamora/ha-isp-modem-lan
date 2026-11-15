@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "ISP Modem LAN (experimental)",
-        "description": "Choose the exact modem family. Vivo currently provides read-only status; only Claro has a manual restart button. Status may require credentials. Both observed login protocols use unencrypted HTTP: use only on a trusted management LAN. No automatic restarts.",
+        "description": "Choose the exact modem family. Claro has a verified manual restart button; Vivo has an experimental manual restart button whose result has not been confirmed on a live modem. Press only when an interruption is acceptable. Status may require credentials. Both observed login protocols use unencrypted HTTP: use only on a trusted management LAN. No automatic restarts.",
         "data": {
           "modem_type": "Modem type",
           "host": "Modem IPv4 address",
