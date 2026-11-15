@@ -11,7 +11,7 @@ from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import DOMAIN
+from . import CONF_MODEM_TYPE, DOMAIN, TYPE_CLARO, TYPE_VIVO
 
 DESCRIPTIONS = (
     SensorEntityDescription(
@@ -74,9 +74,37 @@ DESCRIPTIONS = (
 )
 
 
+VIVO_DESCRIPTIONS = (
+    DESCRIPTIONS[0],
+    DESCRIPTIONS[1],
+    SensorEntityDescription(key="model", name="Model", icon="mdi:router-network"),
+    SensorEntityDescription(
+        key="optical_rx_dbm",
+        name="Optical RX power",
+        native_unit_of_measurement="dBm",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="optical_tx_dbm",
+        name="Optical TX power",
+        native_unit_of_measurement="dBm",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+)
+
+
+def descriptions_for_type(modem_type):
+    if modem_type == TYPE_VIVO:
+        return VIVO_DESCRIPTIONS
+    if modem_type == TYPE_CLARO:
+        return DESCRIPTIONS
+    raise ValueError("Unsupported modem type")
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(ClaroSensor(coordinator, entry, desc) for desc in DESCRIPTIONS)
+    descriptions = descriptions_for_type(entry.data.get(CONF_MODEM_TYPE, TYPE_CLARO))
+    async_add_entities(ClaroSensor(coordinator, entry, desc) for desc in descriptions)
 
 
 class ClaroSensor(CoordinatorEntity, SensorEntity):

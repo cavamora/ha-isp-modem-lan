@@ -1,1 +1,25 @@
-{"config":{"step":{"user":{"title":"Modem Claro (experimental)","description":"Usuário e senha podem ser necessários até para a configuração se o modem exigir login nas páginas de status; também habilitam o reinício manual. O login envia as credenciais em uma URL HTTP: use apenas numa LAN confiável. Não há reinícios automáticos.","data":{"host":"Endereço IPv4 do modem","username":"Usuário do modem","password":"Senha do modem"}}},"error":{"invalid_host":"Informe um IPv4 sem URL ou caminho","cannot_connect":"Não foi possível ler o status do modem. Se ele exigir login, informe usuário e senha."},"abort":{"already_configured":"Este modem já está configurado"}}}
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ISP Modem LAN (experimental)",
+        "description": "Escolha a família exata do modem. A Vivo oferece apenas leitura de status por enquanto; só a Claro tem botão de reinício manual. O status pode exigir credenciais. Os dois protocolos de login observados usam HTTP sem criptografia: use apenas numa LAN de administração confiável. Não há reinícios automáticos.",
+        "data": {
+          "modem_type": "Tipo de modem",
+          "host": "Endereço IPv4 do modem",
+          "username": "Usuário do modem",
+          "password": "Senha do modem"
+        }
+      }
+    },
+    "error": {
+      "invalid_host": "Informe um IPv4 sem URL ou caminho",
+      "cannot_connect": "Não foi possível ler o status do modem. Se ele exigir login, informe usuário e senha.",
+      "credentials_required": "A Vivo exige usuário e senha",
+      "unsupported_modem": "Escolha um tipo de modem compatível"
+    },
+    "abort": {
+      "already_configured": "Este modem já está configurado"
+    }
+  }
+}

@@ -41,6 +41,7 @@ class ButtonTests(unittest.IsolatedAsyncioTestCase):
 
             class HA:
                 async def async_add_executor_job(self, fn, *args):
+                    self.last_function = fn
                     called.append(args)
 
             hass = HA()
@@ -54,6 +55,11 @@ class ButtonTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(added), 1)
             await added[0].async_press()
             self.assertEqual(called, [("192.0.2.1", "u", "p")])
+            added.clear()
+            entry.data["modem_type"] = "vivo_gpt2741"
+            await module.async_setup_entry(hass, entry, added.extend)
+            self.assertEqual(added, [])
+            self.assertEqual(len(called), 1)
             added.clear()
             entry.data["password"] = ""
             await module.async_setup_entry(hass, entry, added.extend)

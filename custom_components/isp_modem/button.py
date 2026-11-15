@@ -7,13 +7,17 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, EntityC
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from . import DOMAIN
+from . import CONF_MODEM_TYPE, DOMAIN, TYPE_CLARO
 from .reboot import RebootError, send_reboot
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    # Read-only installs have no restart button until credentials are configured.
-    if entry.data.get(CONF_USERNAME) and entry.data.get(CONF_PASSWORD):
+    # Vivo reboot is unverified on the device; never expose an unsafe button.
+    if (
+        entry.data.get(CONF_MODEM_TYPE, TYPE_CLARO) == TYPE_CLARO
+        and entry.data.get(CONF_USERNAME)
+        and entry.data.get(CONF_PASSWORD)
+    ):
         async_add_entities([ClaroRestartButton(hass, entry)])
 
 
@@ -35,6 +39,8 @@ class ClaroRestartButton(ButtonEntity):
 
     async def async_press(self) -> None:
         try:
+            if self._entry.data.get(CONF_MODEM_TYPE, TYPE_CLARO) != TYPE_CLARO:
+                raise HomeAssistantError("Unsupported modem type")
             await self._hass.async_add_executor_job(
                 send_reboot,
                 self._entry.data[CONF_HOST],

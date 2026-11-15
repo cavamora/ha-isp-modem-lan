@@ -1,4 +1,4 @@
-"""UI configuration for a known Claro status page family."""
+"""UI configuration for explicitly selected Claro and Vivo firmware families."""
 
 from __future__ import annotations
 
@@ -9,8 +9,9 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from . import DOMAIN
+from . import CONF_MODEM_TYPE, DOMAIN, TYPE_CLARO, TYPE_VIVO
 from .client import ClaroModemClient, ModemResponseError, normalized_host
+from .vivo import VivoError, VivoModemClient
 
 
 class ISPModemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -24,30 +25,50 @@ class ISPModemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except ValueError:
                 errors[CONF_HOST] = "invalid_host"
             else:
-                try:
-                    await ClaroModemClient(
-                        async_get_clientsession(self.hass),
-                        host,
-                        user_input.get(CONF_USERNAME, ""),
-                        user_input.get(CONF_PASSWORD, ""),
-                    ).status()
-                except (aiohttp.ClientError, TimeoutError, ModemResponseError):
-                    errors["base"] = "cannot_connect"
+                modem_type = user_input.get(CONF_MODEM_TYPE, TYPE_CLARO)
+                username = user_input.get(CONF_USERNAME, "")
+                password = user_input.get(CONF_PASSWORD, "")
+                if modem_type == TYPE_VIVO and not (username and password):
+                    errors["base"] = "credentials_required"
+                elif modem_type not in (TYPE_CLARO, TYPE_VIVO):
+                    errors[CONF_MODEM_TYPE] = "unsupported_modem"
                 else:
-                    await self.async_set_unique_id(host)
-                    self._abort_if_unique_id_configured()
-                    return self.async_create_entry(
-                        title=f"Claro modem ({host})",
-                        data={
-                            CONF_HOST: host,
-                            CONF_USERNAME: user_input.get(CONF_USERNAME, ""),
-                            CONF_PASSWORD: user_input.get(CONF_PASSWORD, ""),
-                        },
-                    )
+                    try:
+                        if modem_type == TYPE_VIVO:
+                            client = VivoModemClient(host, username, password)
+                            await self.hass.async_add_executor_job(client.status)
+                        else:
+                            await ClaroModemClient(
+                                async_get_clientsession(self.hass),
+                                host,
+                                username,
+                                password,
+                            ).status()
+                    except (aiohttp.ClientError, TimeoutError, ModemResponseError, VivoError):
+                        errors["base"] = "cannot_connect"
+                    else:
+                        await self.async_set_unique_id(host)
+                        self._abort_if_unique_id_configured()
+                        brand = "Vivo" if modem_type == TYPE_VIVO else "Claro"
+                        return self.async_create_entry(
+                            title=f"{brand} modem ({host})",
+                            data={
+                                CONF_HOST: host,
+                                CONF_MODEM_TYPE: modem_type,
+                                CONF_USERNAME: username,
+                                CONF_PASSWORD: password,
+                            },
+                        )
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
+                    vol.Required(CONF_MODEM_TYPE, default=TYPE_CLARO): vol.In(
+                        {
+                            TYPE_CLARO: "Claro / TC7337 firmware family",
+                            TYPE_VIVO: "Vivo / GPT-2741GNAC-N1",
+                        }
+                    ),
                     vol.Required(CONF_HOST): str,
                     vol.Optional(CONF_USERNAME, default=""): str,
                     vol.Optional(CONF_PASSWORD): selector.TextSelector(
