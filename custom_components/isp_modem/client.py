@@ -1,10 +1,12 @@
-"""Read-only modem client. Credentials reserved for a verified login protocol."""
+"""Read-only modem status client with challenge login when required."""
+
 from __future__ import annotations
 
 import asyncio
 import ipaddress
 
 from .parser import parse_rf, parse_software
+from .protocol import login_challenge, login_path
 
 
 class ModemResponseError(Exception):
@@ -27,23 +29,55 @@ class ClaroModemClient:
 
     TIMEOUT_SECONDS = 8
 
-    def __init__(self, session, host: str):
+    def __init__(self, session, host: str, username: str = "", password: str = ""):
         self._session = session
         self._base = "http://" + normalized_host(host)
+        self._username = username
+        self._password = password
 
     async def _page(self, path: str) -> str:
         async with asyncio.timeout(self.TIMEOUT_SECONDS):
-            async with self._session.get(f"{self._base}/{path}") as response:
+            async with self._session.get(
+                f"{self._base}/{path}",
+                allow_redirects=False,
+                headers={"User-Agent": "Mozilla/5.0"},
+            ) as response:
+                if path.startswith("login.html?") and response.status in (
+                    301,
+                    302,
+                    303,
+                ):
+                    return ""
                 if response.status != 200:
-                    raise ModemResponseError(f"Status page returned HTTP {response.status}")
-                data = await response.content.read(300001)
-                if len(data) > 300000:
-                    raise ModemResponseError("Status page exceeds size limit")
-                return data.decode("utf-8", "replace")
+                    raise ModemResponseError(
+                        f"Status page returned HTTP {response.status}"
+                    )
+                chunks = []
+                total = 0
+                while chunk := await response.content.read(65536):
+                    total += len(chunk)
+                    if total > 300000:
+                        raise ModemResponseError("Status page exceeds size limit")
+                    chunks.append(chunk)
+                return b"".join(chunks).decode("utf-8", "replace")
+
+    async def _authenticated_page(self, path: str) -> str:
+        page = await self._page(path)
+        challenge = login_challenge(page)
+        if challenge is not None:
+            if not self._username or not self._password:
+                raise ModemResponseError("Modem login required; credentials absent")
+            await self._page(login_path(challenge, self._username, self._password))
+            page = await self._page(path)
+            if login_challenge(page) is not None:
+                raise ModemResponseError("Modem login failed")
+        return page
 
     async def status(self) -> dict:
-        software = parse_software(await self._page("status-software.html"))
-        rf = parse_rf(await self._page("status-conexao-rf.html"))
+        software = parse_software(
+            await self._authenticated_page("status-software.html")
+        )
+        rf = parse_rf(await self._authenticated_page("status-conexao-rf.html"))
         if not software.get("software_version") or not rf.get("downstream_channels"):
             raise ModemResponseError("Unsupported modem page or login required")
         return software | rf

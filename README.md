@@ -1,19 +1,30 @@
 # ISP Modem LAN — experimental
 
-This is a **local, read-only** Home Assistant custom integration prototype for the observed Claro/Technicolor status-page family (hardware V3.00, firmware 08.89.17.27.26). It has **no reboot, reset, factory-restore, or write requests**. Vivo and other modem models are not supported.
+A custom Home Assistant integration for **one observed Claro/Technicolor DOCSIS 3.0 firmware family** (hardware V3.00, firmware 08.89.17.27.26). It is not a generic Claro/Vivo integration; no Vivo support or factory-reset capability exists. Only install on a modem whose pages match this firmware. This is an early beta.
 
-## Setup (when installed in a test Home Assistant)
+## Install via HACS (custom repository)
 
-Copy `custom_components/isp_modem/` into the HA instance's `config/custom_components/isp_modem/`, restart Home Assistant, then add **ISP Modem LAN (experimental)** under Settings → Devices & services. Supply the modem **IPv4 address** (not a URL), and optionally its username and password. The credentials are stored in that HA config entry for future login work but **are not sent by this release**; leave them blank if testing only sensors. The host is contacted over HTTP on port 80. **Do not install this prototype as an active HACS integration yet.**
+HACS → Integrations → menu → Custom repositories → add this repository as **Integration** → download **ISP Modem LAN** → restart Home Assistant → Settings → Devices & services → Add Integration → **ISP Modem LAN**.
 
-Confirmed on one live Claro modem (management address held outside this public repository): `status-software.html` and `status-conexao-rf.html` were readable via GET without sending credentials. Supported sensor fields: hardware/firmware version, uptime, network-access state; upstream/downstream channel counts, average RF power/SNR, corrected/uncorrectable codeword totals. Refresh interval: 90 seconds. The parser deliberately excludes IP addresses, MAC addresses, SSIDs, subscriber identifiers and passwords. No credentials or captured live HTML are checked in; tests use synthetic fixtures.
+Enter the modem IPv4 **without** `http://`, port or path. Username/password are optional for read-only sensors and required for the manual **Restart** button. They are entered in Home Assistant and saved in its configuration storage (including relevant HA backups), **not** read from the developer's Bitwarden vault. To change credentials in this beta, remove and re-add the config entry.
 
-**Safety finding:** in this environment a GET of the modem's unauthenticated landing page exposed a Wi-Fi password in page source. This integration does not fetch that page; restrict access to the modem management interface from untrusted LAN clients, and review modem firmware/security settings. Never publish raw HTML/HAR from this device.
+This modem's observed login JavaScript places base64-encoded `username:password` in a **plain-HTTP URL**. Base64 is not encryption. Use a trusted management LAN, prevent untrusted clients from reaching the admin interface, and avoid URL/proxy/access logs. The integration never prints credentials or full request URLs. A modem already authenticated for this source may serve status/restart pages without another login; if it shows a login form, the integration follows the observed firmware challenge, but that challenge branch has only synthetic test coverage so far.
+
+## Entities
+
+- Sensor **Uptime** (seconds since modem boot): compare it before/after a restart; a drop is stronger evidence than an accepted HTTP request.
+- Firmware/hardware version and network access; upstream/downstream channel counts, average RF power/SNR, corrected and uncorrectable codeword totals. Polls every 90 seconds.
+- **Restart** button, present only when both username and password were configured. It sends **one** guarded reboot request; it does not retry after a dropped connection. The button being pressed does not itself prove a completed reboot. Protect its dashboard control with confirmation where appropriate; direct HA service calls can still press it.
+
+The status parser deliberately excludes IP addresses, MAC addresses, SSIDs, subscriber identifiers, Wi-Fi passwords and login/session tokens. No captured HTML or credentials belong in this repository. Tests use synthetic fixtures.
+
+## Safety / validation
+
+- On one authorized Claro modem, the manual script sent exactly one `rebootinfo.cgi` request after reading the observed `resetrouter.html` token. The modem became temporarily unavailable and the software-status uptime fell from ~25 hours to under 4 minutes. No factory-reset endpoint was called.
+- The status parser was exercised against live read-only firmware/RF pages, and protocol/unit tests use synthetic pages. **The Home Assistant config flow and entity lifecycle are not yet verified inside HA.** Treat this as a pre-release, not broad firmware support.
+- The observed management interface served a page containing a Wi-Fi password in its source without a fresh login challenge from the test client. The integration does not fetch that page; restrict management access from untrusted LAN devices and review firmware/security settings. Never post raw captures/HAR files.
+- The `scripts/manual_reboot.py` CLI is a development-only check: `python3 -m scripts.manual_reboot --host <IP>` is a non-disruptive dry run; live execution additionally requires `ALLOW_LIVE_REBOOT=1` and `--execute`. **Never run a live reboot in CI.**
 
 ## Development
 
-Run `python3 -m unittest discover -s tests -q`. The parser has synthetic tests and was exercised on live read-only status pages. The Home Assistant config-flow and sensor wiring have **not been tested inside Home Assistant yet**. No live reboot test has been conducted. Before shipping a reboot button: identify and validate the login mechanism, verify session/key handling, add isolated fake-modem tests and explicit manual-only opt-in, and obtain owner permission for a disruptive test.
-
-## Packaging decision
-
-Keep this integration in its **own repository** for HACS. A Home Assistant *add-on repository* has a different discovery/install contract; putting `custom_components/` beside add-ons does not make HACS install it. Share maintainership and docs with the existing add-ons organization, but release and version this integration separately.
+`python3 -m unittest discover -s tests -q`; `python3 -m compileall -q custom_components`. The repository is a standard HACS integration, not an HAOS add-on. Corrections for other hardware/firmware must include sanitized synthetic fixtures and a separate compatibility check, not an assumption that the ISP name defines the protocol.

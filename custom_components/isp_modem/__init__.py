@@ -1,8 +1,9 @@
-"""Experimental ISP modem local status integration (no reboot capability yet)."""
+"""Experimental ISP modem local status and manual reboot integration."""
+
 from __future__ import annotations
 
 DOMAIN = "isp_modem"
-PLATFORMS = ["sensor"]
+PLATFORMS = ["sensor", "button"]
 
 
 async def async_setup_entry(hass, entry):

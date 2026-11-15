@@ -1,7 +1,7 @@
 """UI configuration for a known Claro status page family."""
+
 from __future__ import annotations
 
-import asyncio
 import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
@@ -25,25 +25,37 @@ class ISPModemConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors[CONF_HOST] = "invalid_host"
             else:
                 try:
-                    await ClaroModemClient(async_get_clientsession(self.hass), host).status()
-                except (aiohttp.ClientError, TimeoutError, asyncio.TimeoutError, ModemResponseError):
+                    await ClaroModemClient(
+                        async_get_clientsession(self.hass),
+                        host,
+                        user_input.get(CONF_USERNAME, ""),
+                        user_input.get(CONF_PASSWORD, ""),
+                    ).status()
+                except (aiohttp.ClientError, TimeoutError, ModemResponseError):
                     errors["base"] = "cannot_connect"
                 else:
                     await self.async_set_unique_id(host)
                     self._abort_if_unique_id_configured()
                     return self.async_create_entry(
                         title=f"Claro modem ({host})",
-                        data={CONF_HOST: host,
-                              CONF_USERNAME: user_input.get(CONF_USERNAME, ""),
-                              CONF_PASSWORD: user_input.get(CONF_PASSWORD, "")},
+                        data={
+                            CONF_HOST: host,
+                            CONF_USERNAME: user_input.get(CONF_USERNAME, ""),
+                            CONF_PASSWORD: user_input.get(CONF_PASSWORD, ""),
+                        },
                     )
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema({
-                vol.Required(CONF_HOST): str,
-                vol.Optional(CONF_USERNAME, default=""): str,
-                vol.Optional(CONF_PASSWORD): selector.TextSelector(
-                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
-                ),
-            }), errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST): str,
+                    vol.Optional(CONF_USERNAME, default=""): str,
+                    vol.Optional(CONF_PASSWORD): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
         )
