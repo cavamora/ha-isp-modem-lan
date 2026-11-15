@@ -15,7 +15,7 @@ def login_challenge(page: str) -> str | None:
         return None
     if not re.search(r'<input\b[^>]*\bname=["\']Password["\']', page, re.IGNORECASE):
         return None
-    if "Authorization:***" not in page or "login.html?" not in page:
+    if "Authorization:Basic" not in page or "login.html?" not in page:
         return None
     match = re.search(r"&sessionKey=(\d+)!", page)
     return match.group(1) if match else None
@@ -25,7 +25,7 @@ def login_path(challenge: str, username: str, password: str) -> str:
     if not challenge.isdigit() or not username or not password:
         raise ValueError("Invalid login challenge or missing credentials")
     encoded = base64.b64encode((username + ":" + password).encode()).decode("ascii")
-    return "login.html?&sessionKey=" + challenge + "!Authorization:***" + encoded
+    return "login.html?&sessionKey=" + challenge + "!Authorization:Basic" + encoded
 
 
 def reboot_token(page: str) -> str | None:

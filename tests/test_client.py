@@ -59,7 +59,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_status_logs_in_when_challenged(self):
-        login_page = '<form><input name="Login"><input name="Password"></form><script>loc="login.html?";loc+="&sessionKey=123!";loc+="Authorization:***";</script>'
+        login_page = '<form><input name="Login"><input name="Password"></form><script>loc="login.html?";loc+="&sessionKey=123!";loc+="Authorization:Basic";</script>'
         software = "<li><strong>Versão do software</strong><br>08.89.17.27.26</li>"
         rf = "<h2>Portadoras de Downstream adquiridas</h2><li><strong>Canal: 1</strong><br>Potência: 8 dBmV</li>"
 
@@ -88,6 +88,7 @@ class ClientTests(unittest.IsolatedAsyncioTestCase):
                 "status-conexao-rf.html",
             ],
         )
+        self.assertIn("!Authorization:Basic", session.calls[1][0])
 
     async def test_slow_read_is_bounded(self):
         class SlowContent:

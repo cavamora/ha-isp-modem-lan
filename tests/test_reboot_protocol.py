@@ -16,14 +16,14 @@ class ProtocolTests(unittest.TestCase):
         page = """<h2>Por favor, informe o login e a senha</h2>
         <form><input name="Login"/><input name="Password"/></form>
         <script>function apply() { loc = "login.html?";
-        loc += "&sessionKey=123456!"; loc += "Authorization:***"; }</script>"""
+        loc += "&sessionKey=123456!"; loc += "Authorization:Basic"; }</script>"""
         self.assertEqual(login_challenge(page), "123456")
         self.assertIsNone(login_challenge("<h2>Status</h2>"))
 
     def test_login_path_is_only_the_observed_firmware_protocol(self):
         path = login_path("123456", "example", "secret")
         self.assertTrue(
-            path.startswith("login.html?&sessionKey=123456!Authorization:***")
+            path.startswith("login.html?&sessionKey=123456!Authorization:Basic")
         )
         self.assertNotIn("secret", path)
 

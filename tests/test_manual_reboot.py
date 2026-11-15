@@ -4,7 +4,7 @@ from custom_components.isp_modem.reboot import RebootError, prepare_and_maybe_se
 
 SOFTWARE = "<li><strong>Versão do software</strong><br>08.89.17.27.26</li><li><strong>Tempo de Disponibilidade do Sistema</strong><br>1 days 00h:40m:18s.00</li>"
 RESET = "<script>var sessionKey='789'; function btnReset(){var loc = 'rebootinfo.cgi?'; loc += 'sessionKey=' + sessionKey;}</script><strong>Click the button below to reboot the router.</strong>"
-LOGIN = '<form><input name="Login"><input name="Password"></form><script>function apply(){loc="login.html?";loc+="&sessionKey=123456!";loc+="Authorization:***";}</script>'
+LOGIN = '<form><input name="Login"><input name="Password"></form><script>function apply(){loc="login.html?";loc+="&sessionKey=123456!";loc+="Authorization:Basic";}</script>'
 
 
 class WorkflowTests(unittest.TestCase):
