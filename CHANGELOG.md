@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+
+- Match the Vivo browser's observed reboot form exactly: `restoreFlag=1&RestartBtn=RESTART`. The earlier client sent lowercase `restart`; whether that mismatch caused the failed reboot has not been live-verified. Validate the exact literal in the device's own reboot JavaScript before sending the one guarded POST.
+- Add a synthetic regression test for the exact reboot body and reject an unexpected button value. No live reboot was attempted with this version; the Vivo button remains experimental until an independently observed outage and recovery confirms it.
+
 ## 0.2.2
 
 - Add **Poll modem status** (on by default) to initial setup and per-entry Configure options for Claro and Vivo. Existing entries retain polling unless changed.

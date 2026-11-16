@@ -182,7 +182,7 @@ def _reboot_controls_match(reset: str, popup: str, confirmation: str) -> bool:
         and any(_is_local_path(href, "device-management-rebootinfo.cgi") and "reboot" in label for href, label in popup_links)
         and _confirmation_calls_parent_reboot(confirmation)
         and re.search(r"restoreFlag\s*:\s*1\b", reboot)
-        and re.search(r"RestartBtn\s*:\s*[\"']restart[\"']", reboot, re.IGNORECASE)
+        and re.search(r"RestartBtn\s*:\s*[\"']RESTART[\"']", reboot)
         and re.search(r"restoreFlag\s*:\s*5\b", restore)
     )
 
@@ -286,7 +286,7 @@ class VivoModemClient:
         if not _reboot_controls_match(reset, popup, confirmation):
             raise VivoError("Vivo reboot controls changed; request refused")
         payload = urllib.parse.urlencode(
-            {"restoreFlag": "1", "RestartBtn": "restart"}
+            {"restoreFlag": "1", "RestartBtn": "RESTART"}
         ).encode()
         self._restart_armed = True
         try:

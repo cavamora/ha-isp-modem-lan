@@ -25,8 +25,8 @@ document.passWarning.acceptLoginIndex.value=1;
 document.passWarning.LoginPasswordValue.value=passwd;}</script>"""
 RESETS = """<form method="POST" action="device-management-resets.cgi"></form>
 <a href="popup-reboot.cgi">Reboot</a><a href="popup-resets.cgi">Restore</a>
-<script>function reboot(){var data={restoreFlag:1,RestartBtn:"restart"};$.post(document.forms[0].action,data);}
-function restore(){var data={restoreFlag:5,RestartBtn:"restart"};$.post(document.forms[0].action,data);}</script>"""
+<script>function reboot(){var data={restoreFlag:1,RestartBtn:"RESTART"};$.post(document.forms[0].action,data);}
+function restore(){var data={restoreFlag:5,RestartBtn:"RESTART"};$.post(document.forms[0].action,data);}</script>"""
 POPUP = '<a href="device-management-rebootinfo.cgi">Reboot</a><a href="#">Cancel</a>'
 CONFIRM = '<script>$(document).ready(function(){parent.reboot();});</script>'
 
@@ -80,9 +80,7 @@ class _Opener:
             return _Response(self.info)
         if path.endswith("/device-management-resets.cgi"):
             if payload is not None:
-                assert urllib.parse.parse_qs(payload.decode()) == {
-                    "restoreFlag": ["1"], "RestartBtn": ["restart"]
-                }
+                assert payload == b"restoreFlag=1&RestartBtn=RESTART"
                 assert request.get_header("X-requested-with") == "XMLHttpRequest"
                 assert request.get_header("Referer").endswith("/device-management-resets.cgi")
                 return _Response("accepted")
@@ -155,6 +153,12 @@ class VivoTests(unittest.TestCase):
 
     def test_factory_restore_flag_cannot_be_used_as_reboot(self):
         opener = _Opener(resets=RESETS.replace("restoreFlag:1", "restoreFlag:5"))
+        with self.assertRaisesRegex(VivoError, "controls changed"):
+            VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
+        self.assertFalse(any(body and b"restoreFlag" in body for _, body in opener.requests))
+
+    def test_unexpected_restart_button_value_refuses_post(self):
+        opener = _Opener(resets=RESETS.replace('RestartBtn:"RESTART"', 'RestartBtn:"restart"', 1))
         with self.assertRaisesRegex(VivoError, "controls changed"):
             VivoModemClient("192.0.2.2", "user", "pass", opener=opener).restart()
         self.assertFalse(any(body and b"restoreFlag" in body for _, body in opener.requests))
