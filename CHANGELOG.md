@@ -2,8 +2,9 @@
 
 ## 0.2.3
 
-- Match the Vivo browser's observed reboot form exactly: `restoreFlag=1&RestartBtn=RESTART`. The earlier client sent lowercase `restart`; whether that mismatch caused the failed reboot has not been live-verified. Validate the exact literal in the device's own reboot JavaScript before sending the one guarded POST.
-- Add a synthetic regression test for the exact reboot body and reject an unexpected button value. No live reboot was attempted with this version; the Vivo button remains experimental until an independently observed outage and recovery confirms it.
+- Match the Vivo browser's observed reboot form exactly: `restoreFlag=1&RestartBtn=RESTART`. The earlier client sent lowercase `restart`; this payload value was the only protocol change in 0.2.3. Validate the exact literal in the device's own reboot JavaScript before sending the one guarded POST.
+- Add a synthetic regression test for the exact reboot body and reject an unexpected button value. No live reboot was attempted before publication; see the post-release validation below.
+- Post-release validation: the owner pressed the v0.2.3 HA Vivo restart button and confirmed a reboot. HA recorded the Vivo availability changing off then back on after about 38 seconds. This validates the observed device, not other modem models or firmware.
 
 ## 0.2.2
 
