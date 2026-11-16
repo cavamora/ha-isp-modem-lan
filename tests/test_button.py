@@ -56,6 +56,12 @@ class ButtonTests(unittest.IsolatedAsyncioTestCase):
             await added[0].async_press()
             self.assertEqual(called, [("192.0.2.1", "u", "p")])
             added.clear()
+            entry.data["poll_status"] = False
+            await module.async_setup_entry(hass, entry, added.extend)
+            self.assertEqual(len(added), 1)
+            await added[0].async_press()
+            self.assertIs(hass.last_function, module.send_reboot)
+            added.clear()
             entry.data["modem_type"] = "vivo_gpt2741"
             await module.async_setup_entry(hass, entry, added.extend)
             self.assertEqual(len(added), 1)

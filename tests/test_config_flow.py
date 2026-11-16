@@ -48,6 +48,7 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
                 return {"type": "form", **kwargs}
 
         modules["homeassistant.config_entries"].ConfigFlow = ConfigFlow
+        modules["homeassistant.config_entries"].OptionsFlowWithReload = ConfigFlow
         modules["homeassistant"].config_entries = modules["homeassistant.config_entries"]
 
         class HA:
@@ -78,6 +79,7 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(result["type"], "entry")
                     self.assertEqual(result["title"], "Vivo modem (192.0.2.2)")
                     self.assertEqual(result["data"]["modem_type"], "vivo_gpt2741")
+                    self.assertIs(result["data"]["poll_status"], True)
                     self.assertEqual(len(flow.hass.executed), 1)
                     self.assertEqual(flow.hass.executed[0][1], ())
                     self.assertIsNotNone(flow.hass.executed[0][0].__self__)
@@ -90,6 +92,55 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(form["type"], "form")
                     self.assertEqual(form["errors"]["base"], "credentials_required")
                     self.assertEqual(flow.hass.executed, [])
+
+                    class NoPollingVivo:
+                        def __init__(self, *args):
+                            raise AssertionError("No modem client should be built")
+
+                    class NoPollingClaro:
+                        def __init__(self, *args):
+                            raise AssertionError("No modem client should be built")
+
+                    with patch.object(flow_module, "VivoModemClient", NoPollingVivo), patch.object(
+                        flow_module, "ClaroModemClient", NoPollingClaro
+                    ):
+                        for modem_type in ("vivo_gpt2741", "claro_tc7337"):
+                            with self.subTest(modem_type=modem_type):
+                                flow = flow_module.ISPModemConfigFlow()
+                                flow.hass = HA()
+                                result = await flow.async_step_user({
+                                    "host": "192.0.2.2", "username": "u", "password": "p",
+                                    "modem_type": modem_type, "poll_status": False,
+                                })
+                                self.assertEqual(result["type"], "entry")
+                                self.assertIs(result["data"]["poll_status"], False)
+                                self.assertEqual(flow.hass.executed, [])
+
+                        flow = flow_module.ISPModemConfigFlow()
+                        flow.hass = HA()
+                        form = await flow.async_step_user({
+                            "host": "192.0.2.2", "modem_type": "claro_tc7337",
+                            "poll_status": False,
+                        })
+                        self.assertEqual(form["errors"]["base"], "credentials_required")
+
+                    entry = types.SimpleNamespace(
+                        data={"host": "192.0.2.2", "username": "u", "password": "p",
+                              "modem_type": "claro_tc7337", "poll_status": True},
+                        options={},
+                    )
+                    options_flow = flow_module.ISPModemConfigFlow.async_get_options_flow(entry)
+                    options_flow.config_entry = entry  # Home Assistant injects this property.
+                    options_form = await options_flow.async_step_init()
+                    self.assertEqual(options_form["type"], "form")
+                    result = await options_flow.async_step_init({"poll_status": False})
+                    self.assertEqual(result["data"], {"poll_status": False})
+
+                    entry.data["password"] = ""
+                    options_flow = flow_module.ISPModemConfigFlow.async_get_options_flow(entry)
+                    options_flow.config_entry = entry
+                    form = await options_flow.async_step_init({"poll_status": False})
+                    self.assertEqual(form["errors"]["base"], "credentials_required")
             finally:
                 sys.modules.pop("custom_components.isp_modem.config_flow", None)
 

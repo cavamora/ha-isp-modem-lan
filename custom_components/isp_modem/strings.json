@@ -3,10 +3,11 @@
     "step": {
       "user": {
         "title": "ISP Modem LAN (experimental)",
-        "description": "Choose the exact modem family. Claro has a verified manual restart button; Vivo has an experimental manual restart button whose result has not been confirmed on a live modem. Press only when an interruption is acceptable. Status may require credentials. Both observed login protocols use unencrypted HTTP: use only on a trusted management LAN. No automatic restarts.",
+        "description": "Choose the exact modem family. Status polling is optional and enabled by default; with it off, only the manual restart button is loaded and credentials are required. Claro restart has been verified; the Vivo button remains experimental and has failed to reboot in HA tests. Both login protocols use unencrypted HTTP: use only on a trusted management LAN. No automatic restarts.",
         "data": {
           "modem_type": "Modem type",
           "host": "Modem IPv4 address",
+          "poll_status": "Poll modem status (every 90 seconds)",
           "username": "Modem username",
           "password": "Modem password"
         }
@@ -15,11 +16,25 @@
     "error": {
       "invalid_host": "Enter an IPv4 address without a URL or path",
       "cannot_connect": "Could not read the modem status. If it requires a login, enter the username and password.",
-      "credentials_required": "Vivo requires a username and password",
+      "credentials_required": "Username and password are required for Vivo and for button-only setup",
       "unsupported_modem": "Choose a supported modem type"
     },
     "abort": {
       "already_configured": "This modem is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Status polling",
+        "description": "Turn off to stop all automatic modem status requests. The manual restart button remains available when credentials are configured. Status sensors are not loaded while polling is off.",
+        "data": {
+          "poll_status": "Poll modem status (every 90 seconds)"
+        }
+      }
+    },
+    "error": {
+      "credentials_required": "Configure modem username and password before disabling status polling"
     }
   }
 }

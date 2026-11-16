@@ -3,10 +3,11 @@
     "step": {
       "user": {
         "title": "ISP Modem LAN (experimental)",
-        "description": "Escolha a família exata do modem. A Claro tem botão de reinício manual validado; a Vivo tem botão manual experimental, ainda sem confirmação de reinício real. Acione só quando uma interrupção for aceitável. O status pode exigir credenciais. Os dois protocolos de login observados usam HTTP sem criptografia: use apenas numa LAN de administração confiável. Não há reinícios automáticos.",
+        "description": "Escolha a família exata do modem. A consulta de status é opcional e vem ativa; desligada, só o botão manual é carregado e exige credenciais. O reinício da Claro foi validado; o botão Vivo continua experimental e não reiniciou o modem nos testes pelo HA. Os protocolos usam HTTP sem criptografia: use apenas numa LAN confiável. Não há reinícios automáticos.",
         "data": {
           "modem_type": "Tipo de modem",
           "host": "Endereço IPv4 do modem",
+          "poll_status": "Consultar status do modem (a cada 90 segundos)",
           "username": "Usuário do modem",
           "password": "Senha do modem"
         }
@@ -15,11 +16,25 @@
     "error": {
       "invalid_host": "Informe um IPv4 sem URL ou caminho",
       "cannot_connect": "Não foi possível ler o status do modem. Se ele exigir login, informe usuário e senha.",
-      "credentials_required": "A Vivo exige usuário e senha",
+      "credentials_required": "Usuário e senha são obrigatórios para a Vivo ou para usar só o botão",
       "unsupported_modem": "Escolha um tipo de modem compatível"
     },
     "abort": {
       "already_configured": "Este modem já está configurado"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Consulta de status",
+        "description": "Desative para interromper todas as consultas automáticas ao modem. Com credenciais configuradas, o botão manual de reinício continua disponível. Os sensores de status não são carregados enquanto a consulta estiver desativada.",
+        "data": {
+          "poll_status": "Consultar status do modem (a cada 90 segundos)"
+        }
+      }
+    },
+    "error": {
+      "credentials_required": "Configure usuário e senha do modem antes de desativar a consulta de status"
     }
   }
 }

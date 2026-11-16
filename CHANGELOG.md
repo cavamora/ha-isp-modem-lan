@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- Add **Poll modem status** (on by default) to initial setup and per-entry Configure options for Claro and Vivo. Existing entries retain polling unless changed.
+- When off, skip initial status validation, create no coordinator or sensor entities, and send no automatic status requests. Keep the credential-backed manual restart button independently available. Require credentials for new button-only entries.
+- Do not change either modem's reboot protocol. The Vivo button remains experimental and has failed to reboot in HA tests; no live reboot was attempted for this release.
+
 ## 0.2.1
 
 - Add a clearly labeled **Restart (experimental)** button to Vivo entries with credentials, at the owner's request for testing inside Home Assistant. It is not yet confirmed to reboot the modem.
